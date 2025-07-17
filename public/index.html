@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Image Sender</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #075E54;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        .status-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            position: relative;
+            overflow: visible;
+        }
+        .status-container.not-ready {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            color: #c62828;
+        }
+        .status-container.ready {
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            color: #2E7D32;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #128C7E;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .qr-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        #qrCode {
+            display: none;
+            width: 300px;
+            height: auto;
+            margin: 0;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .mode-selector label {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .mode-selector input[type="radio"] {
+            display: none;
+        }
+        .mode-selector input[type="radio"]:checked + label {
+            background: #128C7E;
+            color: white;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        .sublabel {
+            display: block;
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 2px;
+        }
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            border-color: #128C7E;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(18, 140, 126, 0.1);
+        }
+        .file-drop-zone {
+            border: 2px dashed #128C7E;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            background-color: rgba(18, 140, 126, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .file-drop-zone:hover {
+            background-color: rgba(18, 140, 126, 0.1);
+        }
+        .file-drop-zone.dragover {
+            background-color: rgba(18, 140, 126, 0.15);
+            border-color: #075E54;
+        }
+        #imagePreview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .preview-item {
+            position: relative;
+            padding-bottom: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .preview-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .preview-item .remove-btn:hover {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(1.1);
+        }
+        button[type="submit"] {
+            background: linear-gradient(135deg, #128C7E, #075E54);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        button[type="submit"]:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(18, 140, 126, 0.2);
+        }
+        button[type="submit"]:disabled {
+            background: linear-gradient(135deg, #cccccc, #999999);
+            cursor: not-allowed;
+        }
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            height: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .status-updates {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status-update {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .current-status {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
+        .abort-button {
+            background: linear-gradient(135deg, #ff4444, #cc0000) !important;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .abort-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #cc0000, #990000) !important;
+        }
+        .abort-button:disabled {
+            background: linear-gradient(135deg, #cccccc, #999999) !important;
+            cursor: not-allowed;
+        }
+        .upload-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .upload-btn {
+            background: linear-gradient(135deg, #128C7E, #075E54);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .upload-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(18, 140, 126, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WhatsApp Image Sender</h1>
+        
+        <div id="statusContainer" class="status-container not-ready">
+            <div class="loading-spinner"></div>
+            <div id="statusText">Initializing WhatsApp...</div>
+            <div class="qr-container">
+                <img id="qrCode" alt="WhatsApp QR Code">
+            </div>
+        </div>
+
+        <form id="sendForm" style="display: none;">
+            <div class="form-group">
+                <label for="chatId">Phone Number:</label>
+                <span class="sublabel">Enter the phone number with country code</span>
+                <input type="text" id="chatId" required placeholder="1234567890">
+            </div>
+
+            <div class="form-group">
+                <label>Batch Size Mode:</label>
+                <div class="mode-selector">
+                    <input type="radio" id="staticBatch" name="batchMode" value="static" checked>
+                    <label for="staticBatch">Static</label>
+                    <input type="radio" id="randomBatch" name="batchMode" value="random">
+                    <label for="randomBatch">Random</label>
+                </div>
+            </div>
+
+            <div class="form-row batch-settings">
+                <div class="form-group">
+                    <label for="minBatchSize">Minimum Batch Size:</label>
+                    <input type="number" id="minBatchSize" value="5" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="maxBatchSize">Maximum Batch Size:</label>
+                    <input type="number" id="maxBatchSize" value="30" min="1" max="100">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Delay Mode:</label>
+                <div class="mode-selector">
+                    <input type="radio" id="staticDelay" name="delayMode" value="static" checked>
+                    <label for="staticDelay">Static</label>
+                    <input type="radio" id="randomDelay" name="delayMode" value="random">
+                    <label for="randomDelay">Random</label>
+                </div>
+            </div>
+
+            <div class="form-row delay-settings">
+                <div class="form-group">
+                    <label for="minDelay">Minimum Delay (seconds):</label>
+                    <input type="number" id="minDelay" value="2" min="1" max="60">
+                </div>
+                <div class="form-group">
+                    <label for="maxDelay">Maximum Delay (seconds):</label>
+                    <input type="number" id="maxDelay" value="5" min="1" max="60">
+                </div>
+            </div>
+
+            <div class="file-drop-zone" id="dropZone">
+                <div>Drag and drop images or folders here</div>
+                <div class="upload-buttons">
+                    <button type="button" class="upload-btn" id="fileSelectBtn">Select Files</button>
+                    <button type="button" class="upload-btn" id="folderSelectBtn">Select Folder</button>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
+            </div>
+
+            <div id="imagePreview"></div>
+
+            <button type="submit" id="sendButton" disabled>Send Images</button>
+        </form>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-info">
+                <div class="progress-text" id="progressText">0%</div>
+                <div class="current-status" id="currentStatus"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <button type="button" id="abortButton" class="abort-button">Abort</button>
+            <div class="status-updates" id="statusUpdates"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 

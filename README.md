@@ -17,7 +17,7 @@ A desktop application for sending multiple images to WhatsApp contacts with conf
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/ChaimWe/whatsapp-image-sender
 cd whatsapp-image-sender
 ```
 

@@ -1,40 +1,87 @@
 {
   "name": "whatsapp-image-sender",
   "version": "1.0.0",
-  "description": "WhatsApp Image Sender Application",
+  "description": "A desktop application for sending multiple images to WhatsApp contacts with configurable batch sizes and delays",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "server": "node server.js"
+    "server": "node server.js",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "build": {
     "appId": "com.whatsapp.imagesender",
+    "productName": "WhatsApp Image Sender",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!dist/**/*",
+      "!*.md",
+      "!package-lock.json"
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": true,
-      "installerIcon": "public/icon.ico",
-      "uninstallerIcon": "public/icon.ico",
-      "uninstallDisplayName": "WhatsApp Image Sender",
-      "license": "license.txt",
-      "allowToChangeInstallationDirectory": false
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.social-networking"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Network"
     }
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "whatsapp",
+    "image-sender",
+    "batch-upload",
+    "electron",
+    "desktop-app",
+    "automation"
+  ],
+  "author": "Chaim Weisz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChaimWe/whatsapp-image-sender.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ChaimWe/whatsapp-image-sender/issues"
+  },
+  "homepage": "https://github.com/ChaimWe/whatsapp-image-sender#readme",
   "dependencies": {
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.0.0",
+    "puppeteer": "^24.14.0",
     "qrcode": "^1.5.1",
-    "whatsapp-web.js": "^1.19.4"
+    "whatsapp-web.js": "^1.26.1-alpha.1"
   },
   "devDependencies": {
-    "electron": "^23.1.3",
+    "electron": "^37.2.3",
     "electron-builder": "^24.0.0"
+  },
+  "overrides": {
+    "ws": "^8.18.0",
+    "tar-fs": "^2.1.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

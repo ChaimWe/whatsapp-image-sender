@@ -21,7 +21,7 @@ let statusCheckInterval = null;
 let lastQrCode = null;  // Add cache for last QR code
 
 function startStatusChecks() {
-    let checkInterval = 10000; // Default to 10 seconds
+    let checkInterval = 1000; // Start with 1 second for faster initial response
 
     function updateStatusWithInterval() {
         fetch('/status')
@@ -34,6 +34,8 @@ function startStatusChecks() {
                     checkInterval = 1000; // Check every second when syncing
                 } else if (data.isReady) {
                     checkInterval = 2000; // Check every 2 seconds when ready
+                } else {
+                    checkInterval = 1000; // Keep checking every second while initializing
                 }
 
                 updateStatusDisplay(data);
@@ -47,11 +49,13 @@ function startStatusChecks() {
             });
     }
 
-    // Start the first check
+    // Start the first check immediately
     updateStatusWithInterval();
 }
 
 function updateStatusDisplay(data) {
+    console.log('Status update received:', data);
+    
     const statusContainer = document.getElementById('statusContainer');
     const statusText = document.getElementById('statusText');
     const qrCode = document.getElementById('qrCode');
@@ -64,9 +68,11 @@ function updateStatusDisplay(data) {
     const abortButton = document.getElementById('abortButton');
 
     if (data.qrCode) {
+        console.log('QR code detected, displaying...');
         // Only set QR code source if it's not already set
         if (!qrCode.src || qrCode.src.length < 100) { // Basic check for data URL
             qrCode.src = data.qrCode;
+            console.log('QR code source set');
         }
         
         statusContainer.className = 'status-container not-ready';
@@ -77,6 +83,13 @@ function updateStatusDisplay(data) {
         qrCode.style.margin = '20px auto';
         sendForm.style.display = 'none';
         spinner.style.display = 'none';
+        
+        // Show reset button after 30 seconds of QR code display
+        setTimeout(() => {
+            if (data.qrCode && !data.isReady) {
+                document.getElementById('resetButton').style.display = 'block';
+            }
+        }, 30000);
         
         // Add error handling for QR code loading
         qrCode.onerror = (error) => {
@@ -141,6 +154,51 @@ async function abortCurrentJob() {
         }
     } catch (error) {
         console.error('Error aborting job:', error);
+    }
+}
+
+function finishApplication() {
+    // Check if we're running in Electron
+    if (typeof window !== 'undefined' && window.electronAPI) {
+        // Close the Electron window
+        window.electronAPI.closeApp();
+    } else {
+        // Close the browser tab/window
+        window.close();
+        // If window.close() doesn't work (due to browser restrictions), show a message
+        setTimeout(() => {
+            alert('Please close this tab/window manually to exit the application.');
+        }, 100);
+    }
+}
+
+async function resetConnection() {
+    try {
+        const resetButton = document.getElementById('resetButton');
+        resetButton.disabled = true;
+        resetButton.textContent = 'Resetting...';
+        
+        const response = await fetch('/reset', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            addStatusUpdate('🔄 WhatsApp connection reset successfully');
+            // Hide reset button and show loading
+            resetButton.style.display = 'none';
+            document.getElementById('statusText').textContent = 'Reconnecting to WhatsApp...';
+        } else {
+            addStatusUpdate('❌ Failed to reset connection');
+            resetButton.disabled = false;
+            resetButton.textContent = 'Reset Connection';
+        }
+    } catch (error) {
+        console.error('Error resetting connection:', error);
+        addStatusUpdate('❌ Error resetting connection');
+        const resetButton = document.getElementById('resetButton');
+        resetButton.disabled = false;
+        resetButton.textContent = 'Reset Connection';
     }
 }
 
@@ -297,6 +355,15 @@ document.addEventListener('DOMContentLoaded', () => {
     abortButton.addEventListener('click', abortCurrentJob);
     abortButton.disabled = true;
 
+    // Set up finish button
+    const finishButton = document.getElementById('finishButton');
+    finishButton.addEventListener('click', finishApplication);
+    finishButton.disabled = true;
+
+    // Set up reset button
+    const resetButton = document.getElementById('resetButton');
+    resetButton.addEventListener('click', resetConnection);
+
     // Set up mode change handlers
     document.getElementById('staticBatch').addEventListener('change', updateBatchSettings);
     document.getElementById('randomBatch').addEventListener('change', updateBatchSettings);
@@ -410,6 +477,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentStatus.textContent = 'Preparing to send images...';
         statusUpdates.innerHTML = '';
         abortButton.disabled = false;
+        
+        // Hide finish button when starting new job
+        const finishButton = document.getElementById('finishButton');
+        finishButton.style.display = 'none';
+        finishButton.disabled = true;
 
         try {
             const response = await fetch('/send', {
@@ -455,6 +527,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             sendButton.disabled = false;
             abortButton.disabled = true;
+            
+            // Show finish button when job is completed
+            const finishButton = document.getElementById('finishButton');
+            finishButton.style.display = 'block';
+            finishButton.disabled = false;
         }
     });
 });

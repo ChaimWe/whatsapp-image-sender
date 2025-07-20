@@ -16,17 +16,18 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            nodeIntegration: true,
+            nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            webSecurity: true,
+            allowRunningInsecureContent: false
         }
     });
 
-    const indexPath = app.isPackaged 
-        ? path.join(process.resourcesPath, 'public', 'index.html')
-        : path.join(__dirname, 'public', 'index.html');
-
-    mainWindow.loadFile(indexPath);
+    // Wait for server to start before loading the page
+    setTimeout(() => {
+        mainWindow.loadURL('http://localhost:4000');
+    }, 2000);
     
     // Error handling for page load
     mainWindow.webContents.on('did-fail-load', () => {
@@ -89,4 +90,9 @@ app.on('before-quit', () => {
     if (serverProcess) {
         serverProcess.kill();
     }
+});
+
+// Handle close app request from renderer
+ipcMain.on('close-app', () => {
+    app.quit();
 }); 

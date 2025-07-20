@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:4000;">
     <title>WhatsApp Image Sender</title>
     <style>
         body {
@@ -275,6 +276,34 @@
             background: linear-gradient(135deg, #cccccc, #999999) !important;
             cursor: not-allowed;
         }
+        .finish-button {
+            background: linear-gradient(135deg, #25D366, #128C7E) !important;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .finish-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #128C7E, #075E54) !important;
+        }
+        .finish-button:disabled {
+            background: linear-gradient(135deg, #cccccc, #999999) !important;
+            cursor: not-allowed;
+        }
+        .reset-button {
+            background: linear-gradient(135deg, #ff9800, #f57c00) !important;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        .reset-button:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100) !important;
+            transform: translateY(-1px);
+        }
         .upload-buttons {
             display: flex;
             gap: 10px;
@@ -307,6 +336,7 @@
             <div class="qr-container">
                 <img id="qrCode" alt="WhatsApp QR Code">
             </div>
+            <button type="button" id="resetButton" class="reset-button" style="display: none;">Reset Connection</button>
         </div>
 
         <form id="sendForm" style="display: none;">
@@ -382,6 +412,7 @@
                 <div class="progress-bar-fill" id="progressBar"></div>
             </div>
             <button type="button" id="abortButton" class="abort-button">Abort</button>
+            <button type="button" id="finishButton" class="finish-button">Finish</button>
             <div class="status-updates" id="statusUpdates"></div>
         </div>
     </div>

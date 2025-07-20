@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { Client, MessageMedia } = require('whatsapp-web.js');
+const { Client, MessageMedia, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const multer = require('multer');
 const path = require('path');
@@ -17,6 +17,11 @@ let isReady = false;
 let currentJob = null;
 let isSyncing = false;
 
+// Function to add status updates (for logging)
+function addStatusUpdate(message) {
+    console.log(`[STATUS] ${message}`);
+}
+
 // Configure multer for handling file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -31,6 +36,15 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// Security headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
 
 // Serve static files
 app.use(express.static('public'));
@@ -62,11 +76,18 @@ async function initializeWhatsApp() {
                     '--disable-web-security',
                     '--ignore-certificate-errors',
                     '--disable-features=IsolateOrigins,site-per-process',
-                    `--user-data-dir=${sessionDir}`
+                    `--user-data-dir=${sessionDir}`,
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-extensions-except',
+                    '--disable-plugins-discovery'
                 ]
             },
             restartOnAuthFail: true,
-            qrMaxRetries: 5
+            qrMaxRetries: 3,
+            authStrategy: new LocalAuth({
+                clientId: 'whatsapp-image-sender',
+                dataPath: sessionDir
+            })
         });
 
         client.on('qr', async (qr) => {
@@ -75,6 +96,14 @@ async function initializeWhatsApp() {
                 qrCodeData = await qrcode.toDataURL(qr);
                 isReady = false;
                 isSyncing = false;
+                
+                // Add a timeout to prevent infinite QR generation
+                setTimeout(() => {
+                    if (!isReady && !client.info) {
+                        console.log('QR code timeout - user needs to scan within 60 seconds');
+                        addStatusUpdate('⚠️ Please scan the QR code within 60 seconds');
+                    }
+                }, 60000);
             } catch (error) {
                 console.error('Error generating QR code:', error);
             }
@@ -97,11 +126,20 @@ async function initializeWhatsApp() {
             qrCodeData = null;
             isSyncing = true;
             
-            // Save session data
-            const sessionFile = path.join(sessionDir, 'session.json');
+            // Save session data (only if available)
             try {
-                fs.writeFileSync(sessionFile, JSON.stringify(client.pupPage.target()._targetInfo));
-                console.log('Session data saved successfully');
+                if (client.pupPage && client.pupPage.target()) {
+                    const sessionFile = path.join(sessionDir, 'session.json');
+                    const targetInfo = client.pupPage.target()._targetInfo;
+                    if (targetInfo) {
+                        fs.writeFileSync(sessionFile, JSON.stringify(targetInfo));
+                        console.log('Session data saved successfully');
+                    } else {
+                        console.log('No target info available for session saving');
+                    }
+                } else {
+                    console.log('Puppeteer page not available for session saving');
+                }
             } catch (error) {
                 console.error('Failed to save session data:', error);
             }
@@ -210,6 +248,17 @@ app.post('/abort', (req, res) => {
         res.json({ success: true, message: 'Job aborted' });
     } else {
         res.json({ success: false, message: 'No active job to abort' });
+    }
+});
+
+app.post('/reset', async (req, res) => {
+    try {
+        console.log('Manual reset requested by user');
+        await cleanupAndRestart();
+        res.json({ success: true, message: 'WhatsApp client reset successfully' });
+    } catch (error) {
+        console.error('Error during manual reset:', error);
+        res.status(500).json({ success: false, message: 'Failed to reset WhatsApp client' });
     }
 });
 
